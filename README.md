@@ -1,0 +1,2 @@
+# semantic_segmentation_pytorch
+Semantic segmentation scripts
