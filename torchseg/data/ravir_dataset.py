@@ -39,13 +39,13 @@ def get_data_loaders(config):
 
     return {
         State.train: data.DataLoader(
-            RavirDataset(annotations, transforms),
+            RavirDataset(annotations, transforms[State.train]),
             batch_size=config.training.batch_size,
             shuffle=True,
             num_workers=config.training.num_workers
         ),
         State.val: data.DataLoader(
-            RavirDataset(annotations, transforms),
+            RavirDataset(annotations, transforms[State.val]),
             batch_size=config.training.batch_size,
             shuffle=False,
             num_workers=config.training.num_workers
