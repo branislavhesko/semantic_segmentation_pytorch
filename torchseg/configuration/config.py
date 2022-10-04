@@ -13,7 +13,8 @@ def get_transforms():
             A.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1, always_apply=False, p=0.5),
             A.Rotate(limit=15, interpolation=1, border_mode=4, p=0.5),
             A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5)
+            A.VerticalFlip(p=0.5),
+            A.ShiftScaleRotate()
         ]),
         State.val: A.Compose([])
     }
@@ -23,7 +24,7 @@ def get_transforms():
 @dataclasses.dataclass()
 class TrainingConfig:
     num_epochs: int = 100
-    batch_size: int = 4
+    batch_size: int = 2
     num_workers: int = 4
     lr: float = 2e-4
     weight_decay: float = 1e-4
@@ -33,7 +34,7 @@ class TrainingConfig:
 # TODO: finish
 @dataclasses.dataclass()
 class DirNetConfig:
-    angles: torch.Tensor = torch.tensor([0, 45, 90, 135]).float()
+    angles: torch.Tensor = torch.tensor([0, 30, 45, 60, 90, 120, 135, 150]).float()
     in_channels: int = 64
     out_channels: int = 384
 
@@ -41,9 +42,9 @@ class DirNetConfig:
 @dataclasses.dataclass()
 class RavirDatasetConfig:
     transforms: Dict[State, A.Compose] = dataclasses.field(default_factory=get_transforms)
-    image_path: str = "/home/brani/code/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_images"
-    mask_path: str = "/home/brani/code/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_masks"
-
+    image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_images"
+    mask_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_masks"
+    test_image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/test/"
 
 @dataclasses.dataclass()
 class Config:

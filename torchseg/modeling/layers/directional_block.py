@@ -26,7 +26,7 @@ class DirectionalBlock(torch.nn.Module):
             rotated_features = self.transformer(rotated_features)
             rotated_features = einops.rearrange(rotated_features, "(b h) w c -> b c h w", h=x.shape[2])
 
-            dir_features.append(K.geometry.rotate(rotated_features, -angle))
+            dir_features.append(K.geometry.rotate(rotated_features.to(x.dtype), -angle))
         return self.output_conv(torch.cat(dir_features, dim=1))
 
 

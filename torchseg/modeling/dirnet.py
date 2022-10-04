@@ -12,11 +12,11 @@ class DirNet(torch.nn.Module):
     def __init__(self, num_classes: int) -> None:
         super().__init__()
         self.backbone = timm.create_model("efficientnet_b4", pretrained=True, features_only=True)
-        self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0, 45, 90, 135]).float(), requires_grad=False))
+        self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0, 45, 90, 135]).half(), requires_grad=False))
         self.decoder4 = Decoder(448, 64, 384, angles=self.angles)
         self.decoder3 = Decoder(224, 64, 384, angles=self.angles)
-        self.decoder2 = Decoder(120, 64, 384, angles=self.angles)
-        self.decoder1 = Decoder(96, 64, 384, angles=self.angles)
+        self.decoder2 = Decoder(120, 64, 120, angles=self.angles)
+        self.decoder1 = Decoder(96, 64, 96, angles=None)
         self.out_block = torch.nn.Sequential(
             torch.nn.Conv2d(64, 64, kernel_size=3, padding=1),
             torch.nn.BatchNorm2d(64),
