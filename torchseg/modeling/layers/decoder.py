@@ -1,3 +1,4 @@
+from typing import List
 import torch
 
 from torchseg.modeling.layers.directional_block import DirectionalBlock
@@ -10,13 +11,14 @@ class Decoder(torch.nn.Module):
             in_channels,
             out_channels,
             embed_dim,
+            feature_size: torch.Size | List[int],
             angles: torch.Tensor | None = None,
-            num_heads: int | None =None
+            num_heads: int | None =None,
         ) -> None:
         super().__init__()
         if angles is not None:
             # TODO: add batchnorm + relu?
-            self.directional_block = DirectionalBlock(angles, in_channels=in_channels, out_channels=embed_dim)
+            self.directional_block = DirectionalBlock(angles, in_channels=in_channels, out_channels=embed_dim, feature_size=feature_size)
 
         else:
             self.directional_block = torch.nn.Sequential(

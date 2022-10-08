@@ -23,12 +23,13 @@ def get_transforms():
 
 @dataclasses.dataclass()
 class TrainingConfig:
-    num_epochs: int = 100
+    num_epochs: int = 200
     batch_size: int = 2
     num_workers: int = 4
     lr: float = 2e-4
     weight_decay: float = 1e-4
     amp_enabled: bool = True
+    save_every = 20
 
 
 # TODO: finish
@@ -46,10 +47,20 @@ class RavirDatasetConfig:
     mask_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_masks"
     test_image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/test/"
 
+
+@dataclasses.dataclass()
+class DriveDatasetConfig:
+    transforms: Dict[State, A.Compose] = dataclasses.field(default_factory=get_transforms)
+    image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/DRIVE/training/images"
+    mask_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/DRIVE/training/1st_manual"
+    test_image_path: str = ""
+
+
 @dataclasses.dataclass()
 class Config:
     training: TrainingConfig = TrainingConfig()
-    dataset: RavirDatasetConfig = RavirDatasetConfig()
+    dataset: RavirDatasetConfig | DriveDatasetConfig = DriveDatasetConfig()
     model: DirNetConfig = DirNetConfig()
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
-    num_classes: int = 3
+    num_classes: int = 2
+    image_size: int = 768

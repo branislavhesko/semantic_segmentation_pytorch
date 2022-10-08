@@ -7,8 +7,9 @@ from tqdm import tqdm
 
 from torchseg.configuration.config import Config
 from torchseg.configuration.state import State
-from torchseg.data.ravir_dataset import get_data_loaders
+from torchseg.data.drive_dataset import get_data_loaders
 from torchseg.modeling.dirnet import DirNet
+from torchseg.modeling.losses.dice import DiceBCELoss
 
 
 class SegmentationTrainer:
@@ -32,13 +33,16 @@ class SegmentationTrainer:
         )
         self.writer = SummaryWriter()
         self.data_loaders = get_data_loaders(self.config)
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = DiceBCELoss()
 
     def train(self):
         for epoch in range(self.config.training.num_epochs):
             self.train_epoch(epoch)
             self.validate_epoch(epoch)
-            self.test_epoch(epoch)
+            if State.test in self.data_loaders:
+                self.test_epoch(epoch)
+            if epoch % self.config.training.save_every == 0:
+                torch.save(self.model.state_dict(), f"checkpoint.pth")
 
     def train_epoch(self, epoch):
         train_bar = tqdm(self.data_loaders[State.train])
@@ -70,8 +74,7 @@ class SegmentationTrainer:
 
         for idx, data in enumerate(self.data_loaders[State.test]):
             image = data[0].to(self.config.device)
-            with torch.cuda.amp.autocast():
-                output = self.model(image)
+            output = self.model(image)
             prediction = torch.argmax(output, dim=1).unsqueeze(1)
             self.writer.add_images("test/prediction", prediction / 2., epoch * len(self.data_loaders[State.test]) + idx)
             self.writer.add_images("test/images", image, epoch * len(self.data_loaders[State.test]) + idx)
