@@ -30,10 +30,31 @@ class MetricMaker:
     def __init__(self, classes) -> None:
         self.dices = {cls: [] for cls in classes}
         self.ious = {cls: [] for cls in classes}
+        self.classes = classes
 
-    def update(self, pred, target, num_classes):
-        dices = dice(pred, target, num_classes)
-        ious = iou(pred, target, num_classes)
-        for cls in range(num_classes):
-            self.dices[cls].append(dices[cls])
-            self.ious[cls].append(ious[cls])
+    def update(self, pred, target):
+        dices = dice(pred, target, len(self.classes))
+        ious = iou(pred, target, len(self.classes))
+        for idx, cls in enumerate(self.classes):
+            self.dices[cls].append(dices[idx])
+            self.ious[cls].append(ious[idx])
+
+    @property
+    def last_dice(self):
+        return {cls: self.dices[cls][-1] for cls in self.classes}
+
+    @property
+    def last_iou(self):
+        return {cls: self.ious[cls][-1] for cls in self.classes}
+
+    @property
+    def mean_dice(self):
+        return {cls: torch.tensor(self.dices[cls]).mean().item() for cls in self.classes}
+
+    @property
+    def mean_iou(self):
+        return {cls: torch.tensor(self.ious[cls]).mean().item() for cls in self.classes}
+
+    def reset(self):
+        self.dices = {cls: [] for cls in self.classes}
+        self.ious = {cls: [] for cls in self.classes}

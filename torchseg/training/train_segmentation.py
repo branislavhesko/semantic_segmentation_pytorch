@@ -10,6 +10,7 @@ from torchseg.configuration.state import State
 from torchseg.data.drive_dataset import get_data_loaders
 from torchseg.modeling.dirnet_attention import DirNet
 from torchseg.modeling.losses.dice import DiceBCELoss
+from torchseg.utils.metrics import MetricMaker
 
 
 class SegmentationTrainer:
@@ -34,6 +35,10 @@ class SegmentationTrainer:
         self.writer = SummaryWriter()
         self.data_loaders = get_data_loaders(self.config)
         self.loss = DiceBCELoss()
+        self.metrics = {
+            State.train: MetricMaker(["background", "vessel"]),
+            State.val: MetricMaker(["background", "vessel"]),
+        }
 
     def train(self):
         for epoch in range(self.config.training.num_epochs):
@@ -59,12 +64,18 @@ class SegmentationTrainer:
             self.scaler.step(self.optimizer)
             self.scaler.update()
             prediction = torch.argmax(outputs, dim=1).unsqueeze(1)
+            self.metrics[State.train].update(prediction.squeeze(1), mask)
             if idx % 3 == 0:
                 self.writer.add_images("train/prediction", prediction / 2., epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_images("train/masks", mask.unsqueeze(1) / 2., epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_images("train/images", image, epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_scalar("train/loss", loss.item(), epoch * len(self.data_loaders[State.train]) + idx)
             train_bar.set_description(f"Epoch: {epoch}, Loss: {loss.item():.4f}")
+        for cls_, value in self.metrics[State.train].mean_iou.items():
+            self.writer.add_scalar(f"TRAIN_MEAN_IOU/{cls_}", value, epoch)
+
+        for cls_, value in self.metrics[State.train].mean_dice.items():
+            self.writer.add_scalar(f"TRAIN_MEAN_DICE/{cls_}", value, epoch)
 
     def validate_epoch(self, epoch):
         pass
