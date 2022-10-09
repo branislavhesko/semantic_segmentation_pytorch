@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torchseg.configuration.config import Config
 from torchseg.configuration.state import State
 from torchseg.data.drive_dataset import get_data_loaders
-from torchseg.modeling.dirnet import DirNet
+from torchseg.modeling.dirnet_attention import DirNet
 from torchseg.modeling.losses.dice import DiceBCELoss
 
 
@@ -52,18 +52,19 @@ class SegmentationTrainer:
         for idx, data in enumerate(train_bar):
             self.optimizer.zero_grad()
             image, mask = [d.to(self.config.device) for d in data]
-            with torch.cuda.amp.autocast():
+            with torch.cuda.amp.autocast(enabled=True):
                 outputs = self.model(image)
                 loss = self.loss(outputs, mask)
-            prediction = torch.argmax(outputs, dim=1).unsqueeze(1)
-            self.writer.add_images("train/prediction", prediction / 2., epoch * len(self.data_loaders[State.train]) + idx)
-            self.writer.add_images("train/masks", mask.unsqueeze(1) / 2., epoch * len(self.data_loaders[State.train]) + idx)
-            self.writer.add_images("train/images", image, epoch * len(self.data_loaders[State.train]) + idx)
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-            self.writer.add_scalar("train/loss", loss.item(), epoch * len(self.data_loaders[State.train]) + idx)
-            train_bar.update()
+            prediction = torch.argmax(outputs, dim=1).unsqueeze(1)
+            if idx % 3 == 0:
+                self.writer.add_images("train/prediction", prediction / 2., epoch * len(self.data_loaders[State.train]) + idx)
+                self.writer.add_images("train/masks", mask.unsqueeze(1) / 2., epoch * len(self.data_loaders[State.train]) + idx)
+                self.writer.add_images("train/images", image, epoch * len(self.data_loaders[State.train]) + idx)
+                self.writer.add_scalar("train/loss", loss.item(), epoch * len(self.data_loaders[State.train]) + idx)
+            train_bar.set_description(f"Epoch: {epoch}, Loss: {loss.item():.4f}")
 
     def validate_epoch(self, epoch):
         pass

@@ -11,6 +11,7 @@ def get_transforms():
     return {
         State.train: A.Compose([
             A.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1, always_apply=False, p=0.5),
+            A.AdvancedBlur(blur_limit=3, always_apply=False, p=0.5),
             A.Rotate(limit=15, interpolation=1, border_mode=4, p=0.5),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
@@ -23,7 +24,7 @@ def get_transforms():
 
 @dataclasses.dataclass()
 class TrainingConfig:
-    num_epochs: int = 200
+    num_epochs: int = 300
     batch_size: int = 2
     num_workers: int = 4
     lr: float = 2e-4

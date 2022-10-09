@@ -4,28 +4,30 @@ import torch
 import torch.nn.functional as F
 import timm
 
-from torchseg.modeling.layers.decoder import Decoder
+from torchseg.modeling.layers.decoder_convolutional import Decoder
 
 
 class DirNet(torch.nn.Module):
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
-        self.backbone = timm.create_model("efficientnet_b6", pretrained=True, features_only=True)
-        self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0, 45, 90, 135]).half(), requires_grad=False))
-        self.decoder4 = Decoder(576, 64, 384, angles=self.angles, feature_size=(24, 24))
-        self.decoder3 = Decoder(264, 64, 384, angles=self.angles, feature_size=(48, 48))
-        self.decoder2 = Decoder(136, 64, 120, angles=self.angles, feature_size=(96, 96))
-        self.decoder1 = Decoder(104, 64, 96, angles=None, feature_size=(192, 192))
-        self.decoder0 = Decoder(96, 64, 64, angles=None, feature_size=(384, 384))
+        self.backbone = timm.create_model("tf_efficientnet_b5_ns", pretrained=True, features_only=True)
+        self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0., 45., 90., 135.]), requires_grad=True))
+        self.decoder4 = Decoder(576, 64, 384, angles=self.angles)
+        self.decoder3 = Decoder(264, 64, 384, angles=self.angles)
+        self.decoder2 = Decoder(136, 64, 120, angles=self.angles)
+        self.decoder1 = Decoder(104, 64, 96, angles=None)
+        self.decoder0 = Decoder(96, 64, 64, angles=None)
         self.out_block = torch.nn.Sequential(
             torch.nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            torch.nn.ConvTranspose2d(64, 64, kernel_size=4, stride=2, padding=1),
             torch.nn.BatchNorm2d(64),
             torch.nn.ReLU(inplace=True),
             torch.nn.Conv2d(64, num_classes, kernel_size=1),
         )
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
+        self.angles.data = self.angles.data.to(image.dtype)
         b, c, h, w = image.shape
         feature_list = self.backbone(image)
         features = {}
