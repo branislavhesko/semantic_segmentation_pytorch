@@ -11,13 +11,13 @@ class DirNet(torch.nn.Module):
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
-        self.backbone = timm.create_model("tf_efficientnet_b5_ns", pretrained=True, features_only=True)
+        self.backbone = timm.create_model("tf_efficientnet_b6_ns", pretrained=True, features_only=True)
         self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0, 30, 60, 90, 120, 150]).half(), requires_grad=False))
-        self.decoder4 = Decoder(512, 64, 384, angles=self.angles, feature_size=(24, 24))
-        self.decoder3 = Decoder(240, 64, 384, angles=self.angles, feature_size=(48, 48))
-        self.decoder2 = Decoder(128, 64, 120, angles=self.angles, feature_size=(96, 96))
+        self.decoder4 = Decoder(576, 64, 384, angles=self.angles, feature_size=(24, 24))
+        self.decoder3 = Decoder(264, 64, 384, angles=self.angles, feature_size=(48, 48))
+        self.decoder2 = Decoder(136, 64, 120, angles=self.angles, feature_size=(96, 96))
         self.decoder1 = Decoder(104, 64, 96, angles=None, feature_size=(192, 192))
-        self.decoder0 = Decoder(88, 64, 64, angles=None, feature_size=(384, 384))
+        self.decoder0 = Decoder(96, 64, 64, angles=None, feature_size=(384, 384))
         self.out_block = torch.nn.Sequential(
             torch.nn.Conv2d(64, 64, kernel_size=3, padding=1),
             torch.nn.ConvTranspose2d(64, 64, kernel_size=4, stride=2, padding=1),

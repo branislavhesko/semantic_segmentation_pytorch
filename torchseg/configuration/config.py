@@ -15,7 +15,9 @@ def get_transforms():
             A.Rotate(limit=15, interpolation=1, border_mode=4, p=0.5),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.ShiftScaleRotate()
+            A.RandomSizedCrop(min_max_height=(384, 768), height=768, width=768, p=0.5),
+            A.ShiftScaleRotate(),
+            A.RandomBrightnessContrast(brightness_limit=0.2),
         ]),
         State.val: A.Compose([])
     }

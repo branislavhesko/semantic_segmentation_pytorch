@@ -8,9 +8,12 @@ from tqdm import tqdm
 from torchseg.configuration.config import Config
 from torchseg.configuration.state import State
 from torchseg.data.drive_dataset import get_data_loaders
+from torchseg.modeling.combine_net import CombineNet
 from torchseg.modeling.dirnet_attention import DirNet
+from torchseg.modeling.deeplab_torchvision import DeepLabV3
 from torchseg.modeling.losses.dice import DiceBCELoss
 from torchseg.utils.metrics import MetricMaker
+from torchseg.utils.visualization import visualization_binary, visualization_feature_maps
 
 
 class SegmentationTrainer:
@@ -53,6 +56,7 @@ class SegmentationTrainer:
         train_bar = tqdm(self.data_loaders[State.train])
         self.model.train()
         self.scaler = torch.cuda.amp.GradScaler()
+        self.metrics[State.train].reset()
 
         for idx, data in enumerate(train_bar):
             self.optimizer.zero_grad()
@@ -63,13 +67,13 @@ class SegmentationTrainer:
             self.scaler.scale(loss).backward()
             self.scaler.step(self.optimizer)
             self.scaler.update()
-            prediction = torch.argmax(outputs, dim=1).unsqueeze(1)
-            self.metrics[State.train].update(prediction.squeeze(1), mask)
+            prediction = torch.argmax(outputs, dim=1)
+            self.metrics[State.train].update(prediction, mask)
             if idx % 3 == 0:
-                self.writer.add_images("train/prediction", prediction / 2., epoch * len(self.data_loaders[State.train]) + idx)
-                self.writer.add_images("train/masks", mask.unsqueeze(1) / 2., epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_images("train/images", image, epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_scalar("train/loss", loss.item(), epoch * len(self.data_loaders[State.train]) + idx)
+                self.writer.add_images("train/visualization", visualization_binary(mask, prediction), epoch * len(self.data_loaders[State.train]) + idx)
+                self.writer.add_figure("train/feature_maps", visualization_feature_maps(outputs), epoch * len(self.data_loaders[State.train]) + idx)
             train_bar.set_description(f"Epoch: {epoch}, Loss: {loss.item():.4f}")
         for cls_, value in self.metrics[State.train].mean_iou.items():
             self.writer.add_scalar(f"TRAIN_MEAN_IOU/{cls_}", value, epoch)
