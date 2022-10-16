@@ -42,6 +42,7 @@ class SegmentationTrainer:
             State.train: MetricMaker(["background", "vessel"]),
             State.val: MetricMaker(["background", "vessel"]),
         }
+        self.model.load_state_dict(torch.load("checkpoint.pth"))
 
     def train(self):
         for epoch in range(self.config.training.num_epochs):

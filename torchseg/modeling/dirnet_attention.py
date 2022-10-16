@@ -19,11 +19,11 @@ class DirNet(torch.nn.Module):
         self.decoder1 = Decoder(104, 64, 96, angles=None, feature_size=(192, 192))
         self.decoder0 = Decoder(96, 64, 64, angles=None, feature_size=(384, 384))
         self.out_block = torch.nn.Sequential(
-            torch.nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            torch.nn.ConvTranspose2d(64, 64, kernel_size=4, stride=2, padding=1),
-            torch.nn.BatchNorm2d(64),
+            torch.nn.Conv2d(64, 32, kernel_size=3, padding=1),
+            torch.nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1),
+            torch.nn.BatchNorm2d(32),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Conv2d(64, num_classes, kernel_size=1),
+            torch.nn.Conv2d(32, num_classes, kernel_size=1),
         )
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:

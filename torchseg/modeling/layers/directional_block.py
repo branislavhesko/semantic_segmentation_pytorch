@@ -4,6 +4,8 @@ import einops
 import kornia as K
 import torch
 
+from torchseg.modeling.layers.convolutional_direction import ConvBNRELU
+
 
 class DirectionalBlock(torch.nn.Module):
 
@@ -14,7 +16,8 @@ class DirectionalBlock(torch.nn.Module):
         )
         self.angles = angles
         self.input_conv = torch.nn.Conv2d(in_channels, 192, kernel_size=1)
-        self.output_conv = torch.nn.Conv2d(192 * len(angles), out_channels, kernel_size=3, padding=1)
+        self.conv_block = torch.nn.Sequential(ConvBNRELU(192, 192, kernel_size=3, padding=1, stride=1), ConvBNRELU(192, 192, kernel_size=3, padding=1, stride=1))
+        self.output_conv = torch.nn.Conv2d(192 * (len(angles) + 1), out_channels, kernel_size=3, padding=1)
         self.positional_encoding = torch.nn.parameter.Parameter(torch.randn(1, 192, feature_size[0], feature_size[1]))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -29,6 +32,7 @@ class DirectionalBlock(torch.nn.Module):
             rotated_features = einops.rearrange(rotated_features, "(b h) w c -> b c h w", h=x.shape[2])
 
             dir_features.append(K.geometry.rotate(rotated_features.to(x.dtype), -angle))
+        dir_features.append(self.conv_block(x))
         return self.output_conv(torch.cat(dir_features, dim=1))
 
 

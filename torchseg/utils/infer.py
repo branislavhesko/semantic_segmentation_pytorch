@@ -20,23 +20,26 @@ from torchseg.utils.visualization import visualization_binary, visualization_fea
 def dice(pred, gt):
     return 2 * (pred * gt).sum() / (pred.sum() + gt.sum())
 
+def sensitivity(pred, gt):
+    return (pred * gt).sum() / gt.sum()
+
 
 config = Config()
 config.device = "cuda"
 model = DirNet(num_classes=config.num_classes).to(config.device)
 path = "checkpoint.pth"
-out_path = "visualization"
+out_path = "best"
 os.makedirs(out_path, exist_ok=True)
-images_path = "/home/brani/doktorat/semantic_segmentation_pytorch/data/DRIVE/training/images"
+images_path = "/home/brani/doktorat/semantic_segmentation_pytorch/data/DRIVE/test/images"
 
 model.load_state_dict(torch.load(path))
 model.eval()
 dices = []
 for img_file in tqdm(glob.glob(os.path.join(images_path, "*.tif"))):
-    img = cv2.cvtColor(cv2.imread(img_file, cv2.IMREAD_UNCHANGED), cv2.COLOR_BGR2RGB) / 255.
-    mask = np.asarray(Image.open(img_file.replace("images", "1st_manual").replace("_training.tif", "_manual1.gif")))
-    horig, worig, _ = img.shape
-    img = cv2.resize(img, (config.image_size, config.image_size))
+    img_orig = cv2.cvtColor(cv2.imread(img_file, cv2.IMREAD_UNCHANGED), cv2.COLOR_BGR2RGB) / 255.
+    # mask = np.asarray(Image.open(img_file.replace("images", "1st_manual").replace("_training.tif", "_manual1.gif")))
+    horig, worig, _ = img_orig.shape
+    img = cv2.resize(img_orig, (config.image_size, config.image_size))
     h, w, _ = img.shape
     tiles = einops.rearrange(img, "(tile_h h) (tile_w w) c -> (tile_h tile_w) h w c", tile_h=1, tile_w=1)
     tiles = torch.from_numpy(tiles).float().to(config.device).permute(0, 3, 1, 2)
@@ -44,8 +47,8 @@ for img_file in tqdm(glob.glob(os.path.join(images_path, "*.tif"))):
     with torch.no_grad():
         output = model(tiles).sigmoid()
         output2 = copy.deepcopy(output)
-        output2[:, 1, ...] -= 0.15
-        output[:, 1, ...] += 0.4
+        output2[:, 1, ...] *= 1.32
+        output[:, 1, ...] *=1.32
         prediction = torch.argmax(output2, dim=1).cpu().numpy()
         prediction2 = torch.argmax(output, dim=1).cpu().numpy()
 
@@ -55,15 +58,17 @@ for img_file in tqdm(glob.glob(os.path.join(images_path, "*.tif"))):
     skeleton = label(skeleton)
     max_label = np.argmax([np.sum(skeleton == i) for i in range(1, np.max(skeleton) + 1)]) + 1
     skeleton = skeleton == max_label
-    prediction = cv2.resize(prediction.astype(np.uint8) * 255, (worig, horig), interpolation=cv2.INTER_LINEAR_EXACT)
-    skeleton = cv2.resize(skeleton.astype(np.uint8) * 255, (worig, horig), interpolation=cv2.INTER_LINEAR_EXACT)
+    # prediction = cv2.erode(prediction.astype(np.uint8) * 255, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, ksize=(3, 3)), iterations=1)
+    prediction = cv2.resize(prediction, (worig, horig), interpolation=cv2.INTER_LINEAR_EXACT)
+    skeleton = cv2.resize(skeleton.astype(np.uint8), (worig, horig), interpolation=cv2.INTER_LINEAR_EXACT)
 
     prediction[skeleton > 0] = 255
-    prediction[prediction > 128] = 255
-    vis = np.zeros((horig, worig, 3), dtype=np.uint8)
-    vis[prediction > 128, 1] = 255
-    vis[mask > 128, 2] = 255
-    dices.append(dice(prediction > 128, mask > 0))
+    prediction[prediction > 0] = 255
+    # vis = np.zeros((horig, worig, 3), dtype=np.uint8)
+    # vis[prediction > 128, 1] = 255
+    # vis[mask > 128, 2] = 255
+    # dices.append(dice(prediction > 128, mask > 0))
+
     cv2.imwrite(os.path.join(out_path, os.path.basename(img_file).split("_")[0] + ".png"), prediction)
 
     # cv2.imwrite(os.path.join(out_path, os.path.basename(img_file).split("_")[0] + "_s.png"), skeleton)
