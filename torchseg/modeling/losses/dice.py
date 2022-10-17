@@ -10,7 +10,7 @@ class DiceBCELoss(nn.Module):
 
     def forward(self, inputs, targets, smooth=1):
         # comment out if your model contains a sigmoid or equivalent activation layer
-        BCE = F.cross_entropy(inputs, targets, reduction='mean')
+        BCE = F.cross_entropy(inputs, targets, weight=torch.tensor([1., 2.], device=targets.device), reduction='mean')
 
         inputs = F.sigmoid(inputs)
         # flatten label and prediction tensors

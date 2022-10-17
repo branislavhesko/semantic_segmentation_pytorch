@@ -11,7 +11,7 @@ from torchseg.data.drive_dataset import get_data_loaders
 from torchseg.modeling.combine_net import CombineNet
 from torchseg.modeling.dirnet_attention import DirNet
 from torchseg.modeling.deeplab_torchvision import DeepLabV3
-from torchseg.modeling.losses.dice import DiceBCELoss
+from torchseg.modeling.losses.dice import DiceBCELoss, DiceLoss
 from torchseg.utils.metrics import MetricMaker
 from torchseg.utils.visualization import visualization_binary, visualization_feature_maps
 
@@ -42,7 +42,7 @@ class SegmentationTrainer:
             State.train: MetricMaker(["background", "vessel"]),
             State.val: MetricMaker(["background", "vessel"]),
         }
-        self.model.load_state_dict(torch.load("checkpoint.pth"))
+        self.model.load_state_dict(torch.load("checkpoint_best.pth"))
 
     def train(self):
         for epoch in range(self.config.training.num_epochs):
@@ -54,6 +54,7 @@ class SegmentationTrainer:
                 torch.save(self.model.state_dict(), f"checkpoint.pth")
 
     def train_epoch(self, epoch):
+        torch.cuda.empty_cache()
         train_bar = tqdm(self.data_loaders[State.train])
         self.model.train()
         self.scaler = torch.cuda.amp.GradScaler()
@@ -70,7 +71,7 @@ class SegmentationTrainer:
             self.scaler.update()
             prediction = torch.argmax(outputs, dim=1)
             self.metrics[State.train].update(prediction, mask)
-            if idx % 3 == 0:
+            if idx % 100 == 0:
                 self.writer.add_images("train/images", image, epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_scalar("train/loss", loss.item(), epoch * len(self.data_loaders[State.train]) + idx)
                 self.writer.add_images("train/visualization", visualization_binary(mask, prediction), epoch * len(self.data_loaders[State.train]) + idx)
@@ -82,8 +83,31 @@ class SegmentationTrainer:
         for cls_, value in self.metrics[State.train].mean_dice.items():
             self.writer.add_scalar(f"TRAIN_MEAN_DICE/{cls_}", value, epoch)
 
+    @torch.no_grad()
     def validate_epoch(self, epoch):
-        pass
+        torch.cuda.empty_cache()
+        validation_bar = tqdm(self.data_loaders[State.val])
+        self.model.eval()
+        self.metrics[State.val].reset()
+
+        for idx, data in enumerate(validation_bar):
+            image, mask = [d.to(self.config.device) for d in data]
+            with torch.cuda.amp.autocast(enabled=False):
+                outputs = self.model(image)
+                loss = self.loss(outputs, mask)
+            prediction = torch.argmax(outputs, dim=1)
+            self.metrics[State.val].update(prediction, mask)
+            if idx % 100 == 0:
+                self.writer.add_images("val/images", image, epoch * len(self.data_loaders[State.val]) + idx)
+                self.writer.add_images("val/visualization", visualization_binary(mask, prediction), epoch * len(self.data_loaders[State.val]) + idx)
+                self.writer.add_figure("val/feature_maps", visualization_feature_maps(outputs), epoch * len(self.data_loaders[State.val]) + idx)
+                self.writer.add_scalar("val/loss", loss.item(), epoch * len(self.data_loaders[State.val]) + idx)
+            validation_bar.set_description(f"Epoch: {epoch}")
+        for cls_, value in self.metrics[State.val].mean_iou.items():
+            self.writer.add_scalar(f"VAL_MEAN_IOU/{cls_}", value, epoch)
+
+        for cls_, value in self.metrics[State.val].mean_dice.items():
+            self.writer.add_scalar(f"VAL_MEAN_DICE/{cls_}", value, epoch)
 
     @torch.no_grad()
     def test_epoch(self, epoch):

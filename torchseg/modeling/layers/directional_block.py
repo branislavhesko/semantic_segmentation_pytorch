@@ -15,7 +15,7 @@ class DirectionalBlock(torch.nn.Module):
             torch.nn.TransformerEncoderLayer(d_model=192, nhead=8, batch_first=True), num_layers=4
         )
         self.angles = angles
-        self.input_conv = torch.nn.Conv2d(in_channels, 192, kernel_size=1)
+        self.input_conv = torch.nn.Sequential(torch.nn.Conv2d(in_channels, 192, kernel_size=3, padding=1), torch.nn.BatchNorm2d(192), torch.nn.ReLU(inplace=True))
         self.conv_block = torch.nn.Sequential(ConvBNRELU(192, 192, kernel_size=3, padding=1, stride=1), ConvBNRELU(192, 192, kernel_size=3, padding=1, stride=1))
         self.output_conv = torch.nn.Conv2d(192 * (len(angles) + 1), out_channels, kernel_size=3, padding=1)
         self.positional_encoding = torch.nn.parameter.Parameter(torch.randn(1, 192, feature_size[0], feature_size[1]))

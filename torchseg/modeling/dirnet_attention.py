@@ -11,24 +11,25 @@ class DirNet(torch.nn.Module):
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
-        self.backbone = timm.create_model("tf_efficientnet_b6_ns", pretrained=True, features_only=True)
-        self.register_buffer("angles", torch.nn.Parameter(torch.tensor([0, 30, 60, 90, 120, 150]).half(), requires_grad=False))
-        self.decoder4 = Decoder(576, 64, 384, angles=self.angles, feature_size=(24, 24))
-        self.decoder3 = Decoder(264, 64, 384, angles=self.angles, feature_size=(48, 48))
-        self.decoder2 = Decoder(136, 64, 120, angles=self.angles, feature_size=(96, 96))
-        self.decoder1 = Decoder(104, 64, 96, angles=None, feature_size=(192, 192))
-        self.decoder0 = Decoder(96, 64, 64, angles=None, feature_size=(384, 384))
+        self.backbone = timm.create_model("resnet50", pretrained=True, features_only=True)
+        self.angles = torch.nn.Parameter(torch.tensor([0, 45, 90, 135]), requires_grad=False)
+        self.decoder4 = Decoder(2048, 256, 384, angles=self.angles, feature_size=(24, 24))
+        self.decoder3 = Decoder(1280, 256, 384, angles=self.angles, feature_size=(48, 48))
+        self.decoder2 = Decoder(768, 256, 120, angles=self.angles, feature_size=(96, 96))
+        self.decoder1 = Decoder(512, 128, 96, angles=None, feature_size=(192, 192))
+        self.decoder0 = Decoder(192, 64, 64, angles=None, feature_size=(384, 384))
         self.out_block = torch.nn.Sequential(
-            torch.nn.Conv2d(64, 32, kernel_size=3, padding=1),
-            torch.nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1),
+            torch.nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
+            torch.nn.Conv2d(32, 32, kernel_size=3, padding=1),
             torch.nn.BatchNorm2d(32),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Conv2d(32, num_classes, kernel_size=1),
+            torch.nn.Conv2d(32, num_classes, kernel_size=3, padding=1),
         )
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         b, c, h, w = image.shape
         feature_list = self.backbone(image)
+        self.angles.data = self.angles.data.to(image.dtype)
         features = {}
         for layer_idx, feature in enumerate(feature_list):
             features[f"layer{layer_idx}"] = feature
