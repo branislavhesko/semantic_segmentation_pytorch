@@ -7,9 +7,9 @@ import torch
 
 class ConvBNRELU(torch.nn.Sequential):
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding) -> None:
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups: int = 1) -> None:
         super().__init__(
-            torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
+            torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=groups),
             torch.nn.BatchNorm2d(out_channels),
             torch.nn.ReLU(inplace=True),
         )

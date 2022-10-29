@@ -11,13 +11,12 @@ from torchseg.configuration.state import State
 def get_transforms():
     return {
         State.train: A.Compose([
-            A.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.0, always_apply=False, p=0.5),
             A.Rotate(limit=15, interpolation=cv2.INTER_LINEAR, p=0.5),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
             A.ShiftScaleRotate(),
-            A.RandomSizedCrop(min_max_height=(384, 768), height=768, width=768, p=0.5),
-            A.RandomBrightnessContrast(brightness_limit=0.2),
+            A.RandomSizedCrop(min_max_height=(512, 768), height=768, width=768, p=0.5),
+            A.RandomBrightnessContrast(brightness_limit=0.1),
         ]),
         State.val: A.Compose([])
     }
@@ -29,10 +28,10 @@ class TrainingConfig:
     num_epochs: int = 300
     batch_size: int = 2
     num_workers: int = 4
-    lr: float = 2e-4
+    lr: float = 5e-4
     weight_decay: float = 1e-4
     amp_enabled: bool = True
-    save_every = 20
+    save_every = 10
 
 
 # TODO: finish

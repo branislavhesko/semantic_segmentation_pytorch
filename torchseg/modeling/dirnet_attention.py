@@ -5,19 +5,39 @@ import torch.nn.functional as F
 import timm
 
 from torchseg.modeling.layers.decoder_attention import Decoder
+from torchvision.models import efficientnet_v2_m
+from torchvision.models.feature_extraction import create_feature_extractor
+
+
+def get_backbone(backbone_name):
+    if backbone_name == "efficientnetv2_m":
+        m1 = efficientnet_v2_m(pretrained=True)
+        model = create_feature_extractor(
+            m1, {
+                'features.1.2.add': 'layer0',
+                'features.2.4.add': 'layer1',
+                'features.3.4.add': 'layer2',
+                'features.5.13.add': 'layer3',
+                'features.8': 'layer4'
+        })
+        return model
+    if backbone_name == "resnet50":
+        model = timm.create_model("resnet50", pretrained=True, features_only=True)
+        return model
 
 
 class DirNet(torch.nn.Module):
+    IMG_SIZE: int = 768
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
-        self.backbone = timm.create_model("resnet50", pretrained=True, features_only=True)
-        self.angles = torch.nn.Parameter(torch.tensor([0, 45, 90, 135]), requires_grad=False)
-        self.decoder4 = Decoder(2048, 256, 384, angles=self.angles, feature_size=(24, 24))
-        self.decoder3 = Decoder(1280, 256, 384, angles=self.angles, feature_size=(48, 48))
-        self.decoder2 = Decoder(768, 256, 120, angles=self.angles, feature_size=(96, 96))
-        self.decoder1 = Decoder(512, 128, 96, angles=None, feature_size=(192, 192))
-        self.decoder0 = Decoder(192, 64, 64, angles=None, feature_size=(384, 384))
+        self.backbone = get_backbone("resnet50")
+        self.angles = torch.nn.Parameter(torch.tensor([0., 30., 60., 90., 120., 150.]), requires_grad=False)
+        self.decoder4 = Decoder(2048, 256, 192, angles=self.angles, feature_size=(self.IMG_SIZE // 32, self.IMG_SIZE // 32))
+        self.decoder3 = Decoder(1280, 256, 192, angles=self.angles, feature_size=(self.IMG_SIZE // 16, self.IMG_SIZE // 16))
+        self.decoder2 = Decoder(768, 192, 192, angles=self.angles, feature_size=(self.IMG_SIZE // 8, self.IMG_SIZE // 8))
+        self.decoder1 = Decoder(448, 96, 96, angles=None, feature_size=(self.IMG_SIZE // 4, self.IMG_SIZE // 4))
+        self.decoder0 = Decoder(160, 64, 64, angles=None, feature_size=(self.IMG_SIZE // 2, self.IMG_SIZE // 2))
         self.out_block = torch.nn.Sequential(
             torch.nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
             torch.nn.Conv2d(32, 32, kernel_size=3, padding=1),
