@@ -37,7 +37,7 @@ class DirNet(torch.nn.Module):
 
     def __init__(self, num_classes: int) -> None:
         super().__init__()
-        self.backbone = get_backbone("segnext")
+        self.backbone = get_backbone("resnet50")
         self.angles = torch.nn.Parameter(torch.tensor([0., 30., 60., 90., 120., 150.]), requires_grad=False)
         self.decoder4 = Decoder(512, 256, 192, angles=self.angles, feature_size=(self.IMG_SIZE // 32, self.IMG_SIZE // 32))
         self.decoder3 = Decoder(512, 256, 192, angles=self.angles, feature_size=(self.IMG_SIZE // 16, self.IMG_SIZE // 16))

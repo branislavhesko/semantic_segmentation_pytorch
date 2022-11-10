@@ -46,9 +46,9 @@ class DirNetConfig:
 @dataclasses.dataclass()
 class RavirDatasetConfig:
     transforms: Dict[State, A.Compose] = dataclasses.field(default_factory=get_transforms)
-    image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_images"
-    mask_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_masks"
-    test_image_path: str = "/home/brani/doktorat/semantic_segmentation_pytorch/data/RAVIR Dataset/test/"
+    image_path: str = "/home/brani/code/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_images"
+    mask_path: str = "/home/brani/code/semantic_segmentation_pytorch/data/RAVIR Dataset/train/training_masks"
+    test_image_path: str = "/home/brani/code/semantic_segmentation_pytorch/data/RAVIR Dataset/test/"
 
 
 @dataclasses.dataclass()
@@ -63,7 +63,7 @@ class DriveDatasetConfig:
 @dataclasses.dataclass()
 class Config:
     training: TrainingConfig = TrainingConfig()
-    dataset: RavirDatasetConfig | DriveDatasetConfig = DriveDatasetConfig()
+    dataset: RavirDatasetConfig | DriveDatasetConfig = RavirDatasetConfig()
     model: DirNetConfig = DirNetConfig()
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     num_classes: int = 2

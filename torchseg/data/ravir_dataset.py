@@ -74,3 +74,13 @@ def get_data_loaders(config):
         )
 
     }
+
+
+if __name__ == "__main__":
+    from torchseg.configuration.config import Config
+
+    loaders = get_data_loaders(Config())
+    for x, y in loaders[State.train]:
+        z = y[0, ...]
+        print(x.shape, y.shape)
+        break
