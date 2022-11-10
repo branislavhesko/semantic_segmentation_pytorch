@@ -39,7 +39,7 @@ class SegmentationTrainer:
             State.train: MetricMaker(["background", "vessel"]),
             State.val: MetricMaker(["background", "vessel"]),
         }
-        self.model.load_state_dict(torch.load("checkpoint_82_3.pth"))
+        self.model.load_state_dict(torch.load("checkpoint_best.pth"))
 
     def train(self):
         best_dice = 0
@@ -47,7 +47,7 @@ class SegmentationTrainer:
         for epoch in range(self.config.training.num_epochs):
             self.train_epoch(epoch)
             val_dices = self.validate_epoch(epoch)
-            self.scheduler.step()
+            # self.scheduler.step()
             if State.test in self.data_loaders:
                 self.test_epoch(epoch)
             if val_dices["vessel"] > best_dice:

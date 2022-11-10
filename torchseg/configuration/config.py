@@ -28,10 +28,11 @@ class TrainingConfig:
     num_epochs: int = 300
     batch_size: int = 2
     num_workers: int = 4
-    lr: float = 5e-4
+    lr: float = 2e-4
     weight_decay: float = 1e-4
     amp_enabled: bool = True
     save_every = 10
+    ema_decay = 0.99
 
 
 # TODO: finish

@@ -1,12 +1,15 @@
 from sre_parse import State
 from tqdm import tqdm
 import torch
+from torch.utils.tensorboard import SummaryWriter
+
 from torchseg.configuration.config import Config, State
-from torchseg.data.drive_dataset import get_data_loaders
+from torchseg.data.drive_dataset import get_data_loaders_semi_supervised
 
 from torchseg.modeling.dirnet_attention import DirNet
 from torchseg.modeling.ema import apply_ema
 from torchseg.modeling.losses.dice import DiceBCELoss
+from torchseg.utils.metrics import MetricMaker
 
 
 class MeanTeacherTrainer:
@@ -20,17 +23,30 @@ class MeanTeacherTrainer:
             m.load_state_dict(torch.load("checkpoint_best.pth"))
 
         self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
+            self.student.parameters(),
             lr=self.config.training.lr,
             weight_decay=self.config.training.weight_decay
         )
-        self.data_loaders = get_data_loaders(self.config)
+        self.data_loaders = get_data_loaders_semi_supervised(self.config)
         self.loss = DiceBCELoss()
+        self.metrics = {
+            State.train: MetricMaker(["background", "vessel"]),
+            State.val: MetricMaker(["background", "vessel"]),
+        }
+        self.writer = SummaryWriter()
 
     def train(self):
+        best_dice = 0
+
         for epoch in range(self.config.training.num_epochs):
             self.train_epoch(epoch)
-            self.validate_epoch(epoch)
+            val_dices = self.validate_epoch(epoch)
+            if State.test in self.data_loaders:
+                self.test_epoch(epoch)
+            if val_dices["vessel"] > best_dice:
+                best_dice = val_dices["vessel"]
+                print("Found new best dice: {}".format(best_dice))
+                torch.save(self.teacher.state_dict(), f"checkpoint_best_teacher.pth")
 
     def train_epoch(self, epoch):
         self.teacher.eval()
@@ -45,7 +61,7 @@ class MeanTeacherTrainer:
             generated_mask = self._generate_mask_by_teacher(image[student_indices])
             mask[student_indices] = generated_mask
             self.optimizer.zero_grad()
-            with torch.cuda.amp.autocast(enabled=self.config.training.amp):
+            with torch.cuda.amp.autocast(enabled=self.config.training.amp_enabled):
                 student_output = self.student(image)
                 loss = self.loss(student_output, mask)
             scaler.scale(loss).backward()
@@ -55,6 +71,8 @@ class MeanTeacherTrainer:
 
 
     def _generate_mask_by_teacher(self, image):
+        if image.shape[0] == 0:
+            return torch.empty(0, 768, 768, dtype=torch.long, device=self.config.device)
         with torch.no_grad():
             mask = self.teacher(image)
         return mask.argmax(dim=1)
@@ -63,13 +81,13 @@ class MeanTeacherTrainer:
     def validate_epoch(self, epoch):
         torch.cuda.empty_cache()
         validation_bar = tqdm(self.data_loaders[State.val])
-        self.student.eval()
+        self.teacher.eval()
         self.metrics[State.val].reset()
 
         for idx, data in enumerate(validation_bar):
             image, mask = [d.to(self.config.device) for d in data]
             with torch.cuda.amp.autocast(enabled=False):
-                outputs = self.student(image)
+                outputs = self.teacher(image)
                 loss = self.loss(outputs, mask)
             prediction = torch.argmax(outputs, dim=1)
             self.metrics[State.val].update(prediction, mask)
@@ -88,3 +106,8 @@ class MeanTeacherTrainer:
             self.writer.add_scalar(f"VAL_MEAN_DICE/{cls_}", value, epoch)
             print(f"VAL_MEAN_DICE/{cls_}: {value}")
         return self.metrics[State.val].mean_dice
+
+if __name__ == "__main__":
+    config = Config()
+    trainer = MeanTeacherTrainer(config)
+    trainer.train()

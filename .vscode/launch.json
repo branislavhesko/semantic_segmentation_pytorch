@@ -25,6 +25,17 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             }
+        },
+        {
+            "name": "UNSUPERVISED",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/torchseg/training/mean_teacher.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
         }
     ]
 }
